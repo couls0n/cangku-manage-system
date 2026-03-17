@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.warehouse.common.PageResult;
 import com.warehouse.common.Result;
+import com.warehouse.dto.outbound.OutboundSubmitRequest;
 import com.warehouse.entity.OutboundOrder;
 import com.warehouse.security.AccessGuard;
 import com.warehouse.service.OutboundOrderService;
 import org.springframework.web.bind.annotation.*;
 
+import javax.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -78,6 +80,13 @@ public class OutboundOrderController {
             outboundOrder.setOperatorId(accessGuard.currentUser().getId());
         }
         return Result.success(outboundOrderService.updateById(outboundOrder));
+    }
+
+    @PostMapping("/submit")
+    public Result<OutboundOrder> submit(@Valid @RequestBody OutboundSubmitRequest request) {
+        Long scopedWarehouseId = accessGuard.resolveWarehouseScope(request.getWarehouseId());
+        request.setWarehouseId(scopedWarehouseId);
+        return Result.success(outboundOrderService.submitOrder(request, accessGuard.currentUser().getId()));
     }
 
     @DeleteMapping("/{id}")

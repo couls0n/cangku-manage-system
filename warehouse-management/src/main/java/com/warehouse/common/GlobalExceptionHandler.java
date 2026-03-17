@@ -3,6 +3,8 @@ package com.warehouse.common;
 import com.warehouse.security.ForbiddenException;
 import com.warehouse.security.RateLimitException;
 import com.warehouse.security.UnauthorizedException;
+import com.warehouse.stock.InsufficientStockException;
+import com.warehouse.stock.StockLockException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -31,6 +33,16 @@ public class GlobalExceptionHandler {
                 ? "请求参数校验失败"
                 : ex.getBindingResult().getFieldError().getDefaultMessage();
         return Result.error(400, message);
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public Result<Void> handleInsufficientStock(InsufficientStockException ex) {
+        return Result.error(409, ex.getMessage());
+    }
+
+    @ExceptionHandler(StockLockException.class)
+    public Result<Void> handleStockLock(StockLockException ex) {
+        return Result.error(503, ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

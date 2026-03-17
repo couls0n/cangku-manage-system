@@ -13,6 +13,11 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 0
+    timeout: 3000ms
   sql:
     init:
       mode: always
@@ -41,3 +46,8 @@ warehouse:
       default-window-seconds: 60
       login-limit: 10
       login-window-seconds: 60
+  stock:
+    lock:
+      enabled: true
+      wait-seconds: 3
+      lease-seconds: 10
