@@ -1,0 +1,24 @@
+#!/usr/bin/env bpftrace
+
+BEGIN
+{
+  printf("warehouse eBPF guard started\n");
+}
+
+tracepoint:syscalls:sys_enter_execve
+/comm == "java"/
+{
+  printf("{\"eventType\":\"EXEC\",\"severity\":\"HIGH\",\"processId\":%d,\"processName\":\"%s\",\"syscallName\":\"execve\",\"targetPath\":\"%s\",\"summary\":\"java process spawned a command\",\"detail\":\"execve detected by bpftrace\"}\n", pid, comm, str(args->filename));
+}
+
+tracepoint:syscalls:sys_enter_openat
+/comm == "java"/
+{
+  printf("{\"eventType\":\"FILE\",\"severity\":\"MEDIUM\",\"processId\":%d,\"processName\":\"%s\",\"syscallName\":\"openat\",\"targetPath\":\"%s\",\"summary\":\"java process opened a file\",\"detail\":\"openat detected by bpftrace\"}\n", pid, comm, str(args->filename));
+}
+
+tracepoint:syscalls:sys_enter_connect
+/comm == "java"/
+{
+  printf("{\"eventType\":\"NETWORK\",\"severity\":\"MEDIUM\",\"processId\":%d,\"processName\":\"%s\",\"syscallName\":\"connect\",\"summary\":\"java process opened a network connection\",\"detail\":\"connect detected by bpftrace\"}\n", pid, comm);
+}

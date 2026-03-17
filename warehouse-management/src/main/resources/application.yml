@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: warehouse-management
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:./data/warehouse;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  sql:
+    init:
+      mode: always
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+mybatis-plus:
+  mapper-locations: classpath*:mapper/*.xml
+  type-aliases-package: com.warehouse.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+logging:
+  level:
+    com.warehouse: debug
+
+warehouse:
+  security:
+    token-secret: warehouse-token-secret-change-me
+    token-expire-hours: 12
+    ebpf-ingest-key: warehouse-ebpf-agent-key
+    rate-limit:
+      default-limit: 120
+      default-window-seconds: 60
+      login-limit: 10
+      login-window-seconds: 60

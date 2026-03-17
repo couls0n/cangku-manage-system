@@ -1,0 +1,5 @@
+-- Reference MySQL bootstrap script.
+-- The application uses H2 by default for local startup and tests.
+-- When using MySQL, start with:
+--   mvn spring-boot:run -Dspring-boot.run.profiles=mysql
+-- Then execute schema.sql followed by data.sql against warehouse_db.

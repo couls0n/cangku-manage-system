@@ -1,0 +1,7 @@
+target/
+.idea/
+src/.idea/
+*.iml
+MAWEN/
+*.log
+logs/

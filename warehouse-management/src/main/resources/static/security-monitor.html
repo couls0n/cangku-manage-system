@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>仓储安全监控台</title>
+    <style>
+        :root {
+            --bg: #f4efe7;
+            --panel: rgba(255, 251, 245, 0.88);
+            --panel-strong: #fffaf1;
+            --text: #1f2933;
+            --muted: #5f6c7b;
+            --line: rgba(111, 88, 52, 0.18);
+            --brand: #0e7490;
+            --brand-dark: #155e75;
+            --danger: #c2410c;
+            --warn: #d97706;
+            --ok: #15803d;
+            --shadow: 0 18px 45px rgba(31, 41, 51, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(14, 116, 144, 0.16), transparent 30%),
+                radial-gradient(circle at right center, rgba(217, 119, 6, 0.12), transparent 25%),
+                linear-gradient(180deg, #f8f3eb 0%, #f4efe7 100%);
+            min-height: 100vh;
+        }
+
+        .shell {
+            max-width: 1360px;
+            margin: 0 auto;
+            padding: 28px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.4fr 0.9fr;
+            gap: 22px;
+            margin-bottom: 24px;
+        }
+
+        .hero-card, .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+
+        .hero-card {
+            padding: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card::after {
+            content: "";
+            position: absolute;
+            inset: auto -60px -80px auto;
+            width: 220px;
+            height: 220px;
+            background: radial-gradient(circle, rgba(14, 116, 144, 0.22), transparent 70%);
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(14, 116, 144, 0.1);
+            color: var(--brand-dark);
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+        }
+
+        h1 {
+            margin: 18px 0 12px;
+            font-size: clamp(28px, 4vw, 46px);
+            line-height: 1.06;
+        }
+
+        .hero-copy {
+            max-width: 720px;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .status-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 22px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.75);
+            border: 1px solid var(--line);
+        }
+
+        .login-card {
+            padding: 24px;
+        }
+
+        .login-card h2,
+        .panel h2 {
+            margin: 0 0 16px;
+            font-size: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 18px;
+        }
+
+        .panel {
+            padding: 20px;
+        }
+
+        .card {
+            grid-column: span 3;
+            padding: 18px;
+            border-radius: 18px;
+            background: var(--panel-strong);
+            border: 1px solid var(--line);
+        }
+
+        .card small {
+            color: var(--muted);
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        .card strong {
+            font-size: 34px;
+            line-height: 1;
+        }
+
+        .section-wide {
+            grid-column: span 8;
+        }
+
+        .section-side {
+            grid-column: span 4;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .toolbar .meta {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        form {
+            display: grid;
+            gap: 12px;
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        input, select, textarea, button {
+            font: inherit;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.86);
+            color: var(--text);
+        }
+
+        textarea {
+            min-height: 110px;
+            resize: vertical;
+        }
+
+        button {
+            border: none;
+            border-radius: 14px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button.secondary {
+            background: rgba(31, 41, 51, 0.08);
+            color: var(--text);
+        }
+
+        .list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .item {
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.66);
+        }
+
+        .item-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .pill {
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        .pill.HIGH {
+            color: #fff;
+            background: var(--danger);
+        }
+
+        .pill.MEDIUM {
+            color: #fff;
+            background: var(--warn);
+        }
+
+        .pill.LOW {
+            color: #fff;
+            background: var(--ok);
+        }
+
+        .kv {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 14px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .empty {
+            padding: 20px;
+            color: var(--muted);
+            text-align: center;
+            border: 1px dashed var(--line);
+            border-radius: 16px;
+        }
+
+        .notice {
+            margin-top: 10px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            font-size: 13px;
+        }
+
+        .notice.info {
+            color: var(--brand-dark);
+            background: rgba(14, 116, 144, 0.1);
+        }
+
+        .notice.error {
+            color: #9a3412;
+            background: rgba(194, 65, 12, 0.12);
+        }
+
+        @media (max-width: 1080px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+
+            .card,
+            .section-wide,
+            .section-side {
+                grid-column: span 12;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .shell {
+                padding: 16px;
+            }
+
+            .input-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <section class="hero">
+        <div class="hero-card">
+            <div class="eyebrow">业务侧 + 内核态 联防</div>
+            <h1>仓储安全监控台</h1>
+            <div class="hero-copy">
+                将 Java 侧的 API 频控、水平/垂直越权拦截，与 eBPF 采集到的系统调用和异常网络行为统一收敛到一张后台监控页面中。
+                你可以在这里查看告警趋势、最新事件，并手动验证 eBPF 事件接入链路。
+            </div>
+            <div class="status-row">
+                <div class="badge">默认账号 `admin / 123456`</div>
+                <div class="badge">监控接口 `/api/security/**`</div>
+                <div class="badge">eBPF 采集密钥 `warehouse-ebpf-agent-key`</div>
+            </div>
+        </div>
+
+        <div class="hero-card login-card">
+            <h2>管理员登录</h2>
+            <form id="loginForm">
+                <input id="username" placeholder="用户名" value="admin">
+                <input id="password" type="password" placeholder="密码" value="123456">
+                <div class="input-row">
+                    <button type="submit">登录并加载监控台</button>
+                    <button type="button" class="secondary" id="logoutBtn">退出</button>
+                </div>
+            </form>
+            <div id="loginNotice" class="notice info">登录后将自动刷新监控总览、告警列表和事件列表。</div>
+        </div>
+    </section>
+
+    <section class="grid" style="margin-bottom: 18px;">
+        <div class="card">
+            <small>累计安全事件</small>
+            <strong id="totalEvents">0</strong>
+        </div>
+        <div class="card">
+            <small>未关闭告警</small>
+            <strong id="openAlerts">0</strong>
+        </div>
+        <div class="card">
+            <small>高危事件</small>
+            <strong id="highEvents">0</strong>
+        </div>
+        <div class="card">
+            <small>最近刷新</small>
+            <strong id="lastRefresh" style="font-size: 18px;">未加载</strong>
+        </div>
+    </section>
+
+    <section class="grid">
+        <div class="panel section-wide">
+            <div class="toolbar">
+                <div>
+                    <h2>告警总览</h2>
+                    <div class="meta" id="distributionText">等待管理员登录后载入</div>
+                </div>
+                <button type="button" id="refreshBtn">刷新监控数据</button>
+            </div>
+            <div id="alertsList" class="list"></div>
+        </div>
+
+        <div class="panel section-side">
+            <h2>手动注入 eBPF 事件</h2>
+            <form id="ingestForm">
+                <div class="input-row">
+                    <select id="eventType">
+                        <option value="EXEC">EXEC</option>
+                        <option value="FILE">FILE</option>
+                        <option value="NETWORK">NETWORK</option>
+                        <option value="APP">APP</option>
+                    </select>
+                    <select id="severity">
+                        <option value="HIGH">HIGH</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="LOW">LOW</option>
+                    </select>
+                </div>
+                <div class="input-row">
+                    <input id="processName" placeholder="进程名" value="java">
+                    <input id="syscallName" placeholder="系统调用" value="execve">
+                </div>
+                <div class="input-row">
+                    <input id="targetPath" placeholder="目标路径 / 远程地址" value="/bin/sh">
+                    <input id="summary" placeholder="事件摘要" value="manual monitor verification">
+                </div>
+                <textarea id="detail" placeholder="事件详情">manual event from security monitor page</textarea>
+                <button type="submit">发送测试事件</button>
+            </form>
+            <div id="ingestNotice" class="notice info">发送后若命中规则，将自动在告警区出现高危异常。</div>
+        </div>
+
+        <div class="panel section-wide">
+            <div class="toolbar">
+                <div>
+                    <h2>最新 eBPF / 应用事件</h2>
+                    <div class="meta">按时间倒序展示最近采集和落库的异常行为。</div>
+                </div>
+            </div>
+            <div id="eventsList" class="list"></div>
+        </div>
+    </section>
+</div>
+
+<script>
+    const tokenKey = "warehouse-security-token";
+
+    const state = {
+        token: localStorage.getItem(tokenKey) || "",
+    };
+
+    function setNotice(id, message, type = "info") {
+        const el = document.getElementById(id);
+        el.textContent = message;
+        el.className = `notice ${type}`;
+    }
+
+    async function api(path, options = {}) {
+        const headers = Object.assign({}, options.headers || {});
+        if (state.token) {
+            headers.Authorization = `Bearer ${state.token}`;
+        }
+        const response = await fetch(path, Object.assign({}, options, { headers }));
+        const data = await response.json();
+        if (data.code !== 200) {
+            throw new Error(data.message || "请求失败");
+        }
+        return data.data;
+    }
+
+    function renderAlerts(alerts) {
+        const root = document.getElementById("alertsList");
+        if (!alerts || alerts.length === 0) {
+            root.innerHTML = '<div class="empty">当前没有安全告警。</div>';
+            return;
+        }
+        root.innerHTML = alerts.map(alert => `
+            <div class="item">
+                <div class="item-top">
+                    <div>
+                        <strong>${escapeHtml(alert.title || "未命名告警")}</strong>
+                        <div class="meta">${escapeHtml(alert.alertType || "")}</div>
+                    </div>
+                    <span class="pill ${escapeHtml(alert.severity || "LOW")}">${escapeHtml(alert.severity || "LOW")}</span>
+                </div>
+                <div style="margin-bottom: 8px;">${escapeHtml(alert.content || "无详情")}</div>
+                <div class="kv">
+                    <span>状态: ${escapeHtml(alert.status || "OPEN")}</span>
+                    <span>命中次数: ${escapeHtml(String(alert.hitCount || 0))}</span>
+                    <span>首次发现: ${escapeHtml(formatTime(alert.firstSeen))}</span>
+                    <span>最近出现: ${escapeHtml(formatTime(alert.lastSeen))}</span>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function renderEvents(events) {
+        const root = document.getElementById("eventsList");
+        if (!events || events.length === 0) {
+            root.innerHTML = '<div class="empty">当前没有采集到事件。</div>';
+            return;
+        }
+        root.innerHTML = events.map(event => `
+            <div class="item">
+                <div class="item-top">
+                    <div>
+                        <strong>${escapeHtml(event.summary || "未命名事件")}</strong>
+                        <div class="meta">${escapeHtml(event.eventType || "UNKNOWN")} / ${escapeHtml(event.syscallName || "-")}</div>
+                    </div>
+                    <span class="pill ${escapeHtml(event.severity || "LOW")}">${escapeHtml(event.severity || "LOW")}</span>
+                </div>
+                <div style="margin-bottom: 8px;">${escapeHtml(event.detail || "无详情")}</div>
+                <div class="kv">
+                    <span>进程: ${escapeHtml(event.processName || "-")} (${escapeHtml(String(event.processId || "-"))})</span>
+                    <span>目标: ${escapeHtml(event.targetPath || event.remoteAddress || "-")}</span>
+                    <span>协议: ${escapeHtml(event.protocol || "-")}</span>
+                    <span>时间: ${escapeHtml(formatTime(event.createdAt))}</span>
+                </div>
+            </div>
+        `).join("");
+    }
+
+    function formatTime(value) {
+        if (!value) return "-";
+        return value.replace("T", " ");
+    }
+
+    function escapeHtml(value) {
+        return value
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll("\"", "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    async function loadDashboard() {
+        const dashboard = await api("/api/security/dashboard");
+        document.getElementById("totalEvents").textContent = dashboard.totalEvents || 0;
+        document.getElementById("openAlerts").textContent = dashboard.openAlerts || 0;
+        document.getElementById("highEvents").textContent = (dashboard.severityDistribution && dashboard.severityDistribution.HIGH) || 0;
+        document.getElementById("lastRefresh").textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+        document.getElementById("distributionText").textContent =
+            `严重度分布 LOW ${dashboard.severityDistribution?.LOW || 0} / MEDIUM ${dashboard.severityDistribution?.MEDIUM || 0} / HIGH ${dashboard.severityDistribution?.HIGH || 0}`;
+        renderAlerts(dashboard.latestAlerts || []);
+        renderEvents(dashboard.latestEvents || []);
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            const body = {
+                username: document.getElementById("username").value.trim(),
+                password: document.getElementById("password").value
+            };
+            const result = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body)
+            }).then(r => r.json());
+            if (result.code !== 200) {
+                throw new Error(result.message || "登录失败");
+            }
+            state.token = result.data.token;
+            localStorage.setItem(tokenKey, state.token);
+            setNotice("loginNotice", `管理员 ${result.data.user.username} 登录成功，正在刷新监控数据。`, "info");
+            await loadDashboard();
+        } catch (error) {
+            setNotice("loginNotice", error.message, "error");
+        }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+        state.token = "";
+        localStorage.removeItem(tokenKey);
+        setNotice("loginNotice", "已退出登录。", "info");
+    });
+
+    document.getElementById("refreshBtn").addEventListener("click", async () => {
+        try {
+            await loadDashboard();
+            setNotice("loginNotice", "监控数据已刷新。", "info");
+        } catch (error) {
+            setNotice("loginNotice", error.message, "error");
+        }
+    });
+
+    document.getElementById("ingestForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        try {
+            const payload = {
+                eventType: document.getElementById("eventType").value,
+                severity: document.getElementById("severity").value,
+                processId: Date.now() % 100000,
+                processName: document.getElementById("processName").value.trim(),
+                syscallName: document.getElementById("syscallName").value.trim(),
+                targetPath: document.getElementById("targetPath").value.trim(),
+                summary: document.getElementById("summary").value.trim(),
+                detail: document.getElementById("detail").value.trim()
+            };
+            const response = await fetch("/api/security/ebpf/ingest", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-EBPF-KEY": "warehouse-ebpf-agent-key"
+                },
+                body: JSON.stringify(payload)
+            }).then(r => r.json());
+            if (response.code !== 200) {
+                throw new Error(response.message || "发送失败");
+            }
+            setNotice("ingestNotice", "测试事件已发送并写入后台。", "info");
+            if (state.token) {
+                await loadDashboard();
+            }
+        } catch (error) {
+            setNotice("ingestNotice", error.message, "error");
+        }
+    });
+
+    if (state.token) {
+        loadDashboard().catch(error => {
+            setNotice("loginNotice", error.message, "error");
+        });
+    }
+</script>
+</body>
+</html>
