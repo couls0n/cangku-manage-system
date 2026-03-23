@@ -1,11 +1,13 @@
 package com.warehouse.controller;
 
+import com.warehouse.audit.AuditOperation;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.warehouse.common.PageResult;
 import com.warehouse.common.Result;
 import com.warehouse.entity.Product;
-import com.warehouse.security.AccessGuard;
+import com.warehouse.security.PermissionConstants;
+import com.warehouse.security.RequiresPermission;
 import com.warehouse.service.ProductService;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,19 +19,19 @@ import java.util.List;
 public class ProductController {
 
     private final ProductService productService;
-    private final AccessGuard accessGuard;
 
-    public ProductController(ProductService productService, AccessGuard accessGuard) {
+    public ProductController(ProductService productService) {
         this.productService = productService;
-        this.accessGuard = accessGuard;
     }
 
     @GetMapping("/list")
+    @RequiresPermission(PermissionConstants.PRODUCT_READ)
     public Result<List<Product>> list() {
         return Result.success(productService.list());
     }
 
     @GetMapping("/page")
+    @RequiresPermission(PermissionConstants.PRODUCT_READ)
     public Result<PageResult<Product>> page(@RequestParam(defaultValue = "1") Integer current,
                                              @RequestParam(defaultValue = "10") Integer size,
                                              @RequestParam(required = false) String productName,
@@ -48,25 +50,29 @@ public class ProductController {
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission(PermissionConstants.PRODUCT_READ)
     public Result<Product> getById(@PathVariable Long id) {
         return Result.success(productService.getById(id));
     }
 
     @PostMapping
+    @RequiresPermission(PermissionConstants.PRODUCT_MANAGE)
+    @AuditOperation(action = "product.create", resource = "product")
     public Result<Boolean> save(@RequestBody Product product) {
-        accessGuard.requireAdmin();
         return Result.success(productService.save(product));
     }
 
     @PutMapping
+    @RequiresPermission(PermissionConstants.PRODUCT_MANAGE)
+    @AuditOperation(action = "product.update", resource = "product")
     public Result<Boolean> update(@RequestBody Product product) {
-        accessGuard.requireAdmin();
         return Result.success(productService.updateById(product));
     }
 
     @DeleteMapping("/{id}")
+    @RequiresPermission(PermissionConstants.PRODUCT_MANAGE)
+    @AuditOperation(action = "product.delete", resource = "product")
     public Result<Boolean> delete(@PathVariable Long id) {
-        accessGuard.requireAdmin();
         return Result.success(productService.removeById(id));
     }
 }

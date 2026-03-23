@@ -1,34 +1,4 @@
-DROP TABLE IF EXISTS security_alert;
-DROP TABLE IF EXISTS ebpf_event;
-DROP TABLE IF EXISTS outbound_order_item;
-DROP TABLE IF EXISTS outbound_order;
-DROP TABLE IF EXISTS inbound_order_item;
-DROP TABLE IF EXISTS inbound_order;
-DROP TABLE IF EXISTS customer;
-DROP TABLE IF EXISTS supplier;
-DROP TABLE IF EXISTS stock;
-DROP TABLE IF EXISTS product;
-DROP TABLE IF EXISTS product_category;
-DROP TABLE IF EXISTS warehouse;
-DROP TABLE IF EXISTS sys_user;
-
-CREATE TABLE sys_user (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(50) NOT NULL,
-  password VARCHAR(100) NOT NULL,
-  real_name VARCHAR(50),
-  phone VARCHAR(20),
-  email VARCHAR(100),
-  status INT DEFAULT 1,
-  role INT DEFAULT 1,
-  warehouse_id BIGINT,
-  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted INT DEFAULT 0,
-  CONSTRAINT uk_username UNIQUE (username)
-);
-
-CREATE TABLE warehouse (
+CREATE TABLE IF NOT EXISTS warehouse (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   warehouse_code VARCHAR(50) NOT NULL,
   warehouse_name VARCHAR(100) NOT NULL,
@@ -43,7 +13,24 @@ CREATE TABLE warehouse (
   CONSTRAINT uk_warehouse_code UNIQUE (warehouse_code)
 );
 
-CREATE TABLE product_category (
+CREATE TABLE IF NOT EXISTS sys_user (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  password VARCHAR(100) NOT NULL,
+  real_name VARCHAR(50),
+  phone VARCHAR(20),
+  email VARCHAR(100),
+  status INT DEFAULT 1,
+  role INT DEFAULT 1,
+  warehouse_id BIGINT,
+  create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  deleted INT DEFAULT 0,
+  CONSTRAINT uk_username UNIQUE (username),
+  CONSTRAINT fk_user_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse (id)
+);
+
+CREATE TABLE IF NOT EXISTS product_category (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   category_name VARCHAR(50) NOT NULL,
   parent_id BIGINT DEFAULT 0,
@@ -55,7 +42,7 @@ CREATE TABLE product_category (
   deleted INT DEFAULT 0
 );
 
-CREATE TABLE product (
+CREATE TABLE IF NOT EXISTS product (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   product_code VARCHAR(50) NOT NULL,
   product_name VARCHAR(100) NOT NULL,
@@ -69,10 +56,11 @@ CREATE TABLE product (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted INT DEFAULT 0,
-  CONSTRAINT uk_product_code UNIQUE (product_code)
+  CONSTRAINT uk_product_code UNIQUE (product_code),
+  CONSTRAINT fk_product_category FOREIGN KEY (category_id) REFERENCES product_category (id)
 );
 
-CREATE TABLE stock (
+CREATE TABLE IF NOT EXISTS stock (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   warehouse_id BIGINT NOT NULL,
   product_id BIGINT NOT NULL,
@@ -82,10 +70,12 @@ CREATE TABLE stock (
   location VARCHAR(50),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted INT DEFAULT 0
+  deleted INT DEFAULT 0,
+  CONSTRAINT fk_stock_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse (id),
+  CONSTRAINT fk_stock_product FOREIGN KEY (product_id) REFERENCES product (id)
 );
 
-CREATE TABLE supplier (
+CREATE TABLE IF NOT EXISTS supplier (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   supplier_code VARCHAR(50) NOT NULL,
   supplier_name VARCHAR(100) NOT NULL,
@@ -101,7 +91,7 @@ CREATE TABLE supplier (
   CONSTRAINT uk_supplier_code UNIQUE (supplier_code)
 );
 
-CREATE TABLE customer (
+CREATE TABLE IF NOT EXISTS customer (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   customer_code VARCHAR(50) NOT NULL,
   customer_name VARCHAR(100) NOT NULL,
@@ -117,8 +107,9 @@ CREATE TABLE customer (
   CONSTRAINT uk_customer_code UNIQUE (customer_code)
 );
 
-CREATE TABLE inbound_order (
+CREATE TABLE IF NOT EXISTS inbound_order (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  request_id VARCHAR(64) NOT NULL,
   order_no VARCHAR(50) NOT NULL,
   warehouse_id BIGINT NOT NULL,
   supplier_id BIGINT,
@@ -130,10 +121,14 @@ CREATE TABLE inbound_order (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted INT DEFAULT 0,
-  CONSTRAINT uk_inbound_order_no UNIQUE (order_no)
+  CONSTRAINT uk_inbound_request_id UNIQUE (request_id),
+  CONSTRAINT uk_inbound_order_no UNIQUE (order_no),
+  CONSTRAINT fk_inbound_order_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse (id),
+  CONSTRAINT fk_inbound_order_supplier FOREIGN KEY (supplier_id) REFERENCES supplier (id),
+  CONSTRAINT fk_inbound_order_operator FOREIGN KEY (operator_id) REFERENCES sys_user (id)
 );
 
-CREATE TABLE inbound_order_item (
+CREATE TABLE IF NOT EXISTS inbound_order_item (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   order_id BIGINT NOT NULL,
   product_id BIGINT NOT NULL,
@@ -144,11 +139,14 @@ CREATE TABLE inbound_order_item (
   remark VARCHAR(500),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted INT DEFAULT 0
+  deleted INT DEFAULT 0,
+  CONSTRAINT fk_inbound_item_order FOREIGN KEY (order_id) REFERENCES inbound_order (id),
+  CONSTRAINT fk_inbound_item_product FOREIGN KEY (product_id) REFERENCES product (id)
 );
 
-CREATE TABLE outbound_order (
+CREATE TABLE IF NOT EXISTS outbound_order (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  request_id VARCHAR(64) NOT NULL,
   order_no VARCHAR(50) NOT NULL,
   warehouse_id BIGINT NOT NULL,
   customer_id BIGINT,
@@ -160,10 +158,14 @@ CREATE TABLE outbound_order (
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   deleted INT DEFAULT 0,
-  CONSTRAINT uk_outbound_order_no UNIQUE (order_no)
+  CONSTRAINT uk_outbound_request_id UNIQUE (request_id),
+  CONSTRAINT uk_outbound_order_no UNIQUE (order_no),
+  CONSTRAINT fk_outbound_order_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouse (id),
+  CONSTRAINT fk_outbound_order_customer FOREIGN KEY (customer_id) REFERENCES customer (id),
+  CONSTRAINT fk_outbound_order_operator FOREIGN KEY (operator_id) REFERENCES sys_user (id)
 );
 
-CREATE TABLE outbound_order_item (
+CREATE TABLE IF NOT EXISTS outbound_order_item (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   order_id BIGINT NOT NULL,
   product_id BIGINT NOT NULL,
@@ -173,10 +175,12 @@ CREATE TABLE outbound_order_item (
   remark VARCHAR(500),
   create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted INT DEFAULT 0
+  deleted INT DEFAULT 0,
+  CONSTRAINT fk_outbound_item_order FOREIGN KEY (order_id) REFERENCES outbound_order (id),
+  CONSTRAINT fk_outbound_item_product FOREIGN KEY (product_id) REFERENCES product (id)
 );
 
-CREATE TABLE ebpf_event (
+CREATE TABLE IF NOT EXISTS ebpf_event (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   event_type VARCHAR(32) NOT NULL,
   severity VARCHAR(16) NOT NULL,
@@ -193,7 +197,7 @@ CREATE TABLE ebpf_event (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE security_alert (
+CREATE TABLE IF NOT EXISTS security_alert (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   alert_type VARCHAR(64) NOT NULL,
   severity VARCHAR(16) NOT NULL,
@@ -204,3 +208,15 @@ CREATE TABLE security_alert (
   hit_count INT DEFAULT 1,
   status VARCHAR(16) DEFAULT 'OPEN'
 );
+
+CREATE INDEX IF NOT EXISTS idx_user_warehouse_deleted ON sys_user (warehouse_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_product_category_deleted ON product (category_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_stock_warehouse_product_deleted ON stock (warehouse_id, product_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_stock_warehouse_product_batch ON stock (warehouse_id, product_id, batch_no);
+CREATE INDEX IF NOT EXISTS idx_inbound_order_warehouse_status ON inbound_order (warehouse_id, status, order_time);
+CREATE INDEX IF NOT EXISTS idx_inbound_item_order_deleted ON inbound_order_item (order_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_outbound_order_warehouse_status ON outbound_order (warehouse_id, status, order_time);
+CREATE INDEX IF NOT EXISTS idx_outbound_item_order_deleted ON outbound_order_item (order_id, deleted);
+CREATE INDEX IF NOT EXISTS idx_event_created_at ON ebpf_event (created_at);
+CREATE INDEX IF NOT EXISTS idx_event_type_severity ON ebpf_event (event_type, severity);
+CREATE INDEX IF NOT EXISTS idx_alert_status_last_seen ON security_alert (status, last_seen);

@@ -1,40 +1,64 @@
 package com.warehouse.security;
 
+import com.warehouse.monitoring.service.SecurityMonitoringService;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AccessGuard {
 
-    private final com.warehouse.monitoring.service.SecurityMonitoringService securityMonitoringService;
+    private final SecurityMonitoringService securityMonitoringService;
 
-    public AccessGuard(com.warehouse.monitoring.service.SecurityMonitoringService securityMonitoringService) {
+    public AccessGuard(SecurityMonitoringService securityMonitoringService) {
         this.securityMonitoringService = securityMonitoringService;
     }
 
     public AuthenticatedUser currentUser() {
         AuthenticatedUser user = SecurityContext.getCurrentUser();
         if (user == null) {
-            throw new UnauthorizedException("请先登录");
+            throw new UnauthorizedException("Please login first");
         }
         return user;
     }
 
     public void requireAdmin() {
         if (!currentUser().isAdmin()) {
-            securityMonitoringService.recordApplicationAlert("ACCESS_DENIED", "HIGH",
-                    "检测到垂直越权拦截",
-                    "非管理员账号尝试执行管理员操作");
-            throw new ForbiddenException("当前账号没有管理员权限");
+            securityMonitoringService.recordApplicationAlert(
+                    "ACCESS_DENIED",
+                    "HIGH",
+                    "Blocked vertical privilege escalation attempt",
+                    "A non-admin account attempted to perform an admin-only operation"
+            );
+            throw new ForbiddenException("Current account does not have admin permission");
         }
+    }
+
+    public boolean hasPermission(String permission) {
+        return currentUser().permissions().contains(permission);
+    }
+
+    public void requirePermission(String permission) {
+        if (hasPermission(permission)) {
+            return;
+        }
+        securityMonitoringService.recordApplicationAlert(
+                "ACCESS_DENIED",
+                "HIGH",
+                "Blocked permission violation",
+                "User " + currentUser().getId() + " lacks permission " + permission
+        );
+        throw new ForbiddenException("Current account does not have permission: " + permission);
     }
 
     public void requireUserAccess(Long userId) {
         AuthenticatedUser currentUser = currentUser();
         if (!currentUser.isAdmin() && !currentUser.getId().equals(userId)) {
-            securityMonitoringService.recordApplicationAlert("ACCESS_DENIED", "HIGH",
-                    "检测到水平越权拦截",
-                    "用户 " + currentUser.getId() + " 尝试访问用户 " + userId + " 的数据");
-            throw new ForbiddenException("禁止访问其他用户的数据");
+            securityMonitoringService.recordApplicationAlert(
+                    "ACCESS_DENIED",
+                    "HIGH",
+                    "Blocked horizontal privilege escalation attempt",
+                    "User " + currentUser.getId() + " attempted to access user " + userId
+            );
+            throw new ForbiddenException("Access to other users' data is forbidden");
         }
     }
 
@@ -44,13 +68,16 @@ public class AccessGuard {
             return warehouseId;
         }
         if (currentUser.getWarehouseId() == null) {
-            throw new ForbiddenException("当前用户未绑定仓库，无法访问仓库数据");
+            throw new ForbiddenException("Current user is not bound to a warehouse");
         }
         if (warehouseId != null && !currentUser.getWarehouseId().equals(warehouseId)) {
-            securityMonitoringService.recordApplicationAlert("ACCESS_DENIED", "HIGH",
-                    "检测到仓库水平越权拦截",
-                    "用户 " + currentUser.getId() + " 尝试访问仓库 " + warehouseId);
-            throw new ForbiddenException("禁止访问其他仓库的数据");
+            securityMonitoringService.recordApplicationAlert(
+                    "ACCESS_DENIED",
+                    "HIGH",
+                    "Blocked cross-warehouse access attempt",
+                    "User " + currentUser.getId() + " attempted to access warehouse " + warehouseId
+            );
+            throw new ForbiddenException("Access to other warehouses' data is forbidden");
         }
         return currentUser.getWarehouseId();
     }

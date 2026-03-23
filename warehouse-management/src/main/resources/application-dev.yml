@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:file:./data/warehouse;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev
+
+warehouse:
+  security:
+    token-secret: dev-warehouse-token-secret-change-me
+    ebpf-ingest-key: dev-warehouse-ebpf-key-change-me
+  stock:
+    lock:
+      enabled: false

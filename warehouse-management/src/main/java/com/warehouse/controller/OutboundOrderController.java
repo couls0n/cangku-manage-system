@@ -1,12 +1,17 @@
 package com.warehouse.controller;
 
+import com.warehouse.audit.AuditOperation;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.warehouse.common.OperationNotAllowedException;
 import com.warehouse.common.PageResult;
+import com.warehouse.common.ResourceNotFoundException;
 import com.warehouse.common.Result;
 import com.warehouse.dto.outbound.OutboundSubmitRequest;
 import com.warehouse.entity.OutboundOrder;
 import com.warehouse.security.AccessGuard;
+import com.warehouse.security.PermissionConstants;
+import com.warehouse.security.RequiresPermission;
 import com.warehouse.service.OutboundOrderService;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,6 +32,7 @@ public class OutboundOrderController {
     }
 
     @GetMapping("/list")
+    @RequiresPermission(PermissionConstants.OUTBOUND_READ)
     public Result<List<OutboundOrder>> list() {
         QueryWrapper<OutboundOrder> wrapper = new QueryWrapper<>();
         if (!accessGuard.currentUser().isAdmin()) {
@@ -36,6 +42,7 @@ public class OutboundOrderController {
     }
 
     @GetMapping("/page")
+    @RequiresPermission(PermissionConstants.OUTBOUND_READ)
     public Result<PageResult<OutboundOrder>> page(@RequestParam(defaultValue = "1") Integer current,
                                                   @RequestParam(defaultValue = "10") Integer size,
                                                   @RequestParam(required = false) String orderNo,
@@ -56,33 +63,29 @@ public class OutboundOrderController {
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission(PermissionConstants.OUTBOUND_READ)
     public Result<OutboundOrder> getById(@PathVariable Long id) {
         OutboundOrder outboundOrder = outboundOrderService.getById(id);
-        if (outboundOrder != null) {
-            accessGuard.checkWarehouseAccess(outboundOrder.getWarehouseId());
+        if (outboundOrder == null) {
+            throw new ResourceNotFoundException("Outbound order not found: " + id);
         }
+        accessGuard.checkWarehouseAccess(outboundOrder.getWarehouseId());
         return Result.success(outboundOrder);
     }
 
     @PostMapping
     public Result<Boolean> save(@RequestBody OutboundOrder outboundOrder) {
-        accessGuard.checkWarehouseAccess(outboundOrder.getWarehouseId());
-        if (!accessGuard.currentUser().isAdmin()) {
-            outboundOrder.setOperatorId(accessGuard.currentUser().getId());
-        }
-        return Result.success(outboundOrderService.save(outboundOrder));
+        throw new OperationNotAllowedException("Use /api/outbound/submit to create outbound orders");
     }
 
     @PutMapping
     public Result<Boolean> update(@RequestBody OutboundOrder outboundOrder) {
-        accessGuard.checkWarehouseAccess(outboundOrder.getWarehouseId());
-        if (!accessGuard.currentUser().isAdmin()) {
-            outboundOrder.setOperatorId(accessGuard.currentUser().getId());
-        }
-        return Result.success(outboundOrderService.updateById(outboundOrder));
+        throw new OperationNotAllowedException("Outbound orders cannot be updated directly");
     }
 
     @PostMapping("/submit")
+    @RequiresPermission(PermissionConstants.OUTBOUND_SUBMIT)
+    @AuditOperation(action = "outbound.submit", resource = "outbound_order")
     public Result<OutboundOrder> submit(@Valid @RequestBody OutboundSubmitRequest request) {
         Long scopedWarehouseId = accessGuard.resolveWarehouseScope(request.getWarehouseId());
         request.setWarehouseId(scopedWarehouseId);
@@ -91,10 +94,6 @@ public class OutboundOrderController {
 
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable Long id) {
-        OutboundOrder outboundOrder = outboundOrderService.getById(id);
-        if (outboundOrder != null) {
-            accessGuard.checkWarehouseAccess(outboundOrder.getWarehouseId());
-        }
-        return Result.success(outboundOrderService.removeById(id));
+        throw new OperationNotAllowedException("Outbound orders cannot be deleted directly");
     }
 }

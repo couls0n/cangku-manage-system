@@ -3,6 +3,7 @@ package com.warehouse.dto.outbound;
 import lombok.Data;
 
 import javax.validation.Valid;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
@@ -11,7 +12,10 @@ import java.util.List;
 @Data
 public class OutboundSubmitRequest {
 
-    @NotNull(message = "仓库不能为空")
+    @NotBlank(message = "Request id cannot be blank")
+    private String requestId;
+
+    @NotNull(message = "Warehouse id cannot be null")
     private Long warehouseId;
 
     private String orderNo;
@@ -25,6 +29,6 @@ public class OutboundSubmitRequest {
     private String remark;
 
     @Valid
-    @NotEmpty(message = "出库明细不能为空")
+    @NotEmpty(message = "Outbound items cannot be empty")
     private List<OutboundSubmitItemRequest> items;
 }

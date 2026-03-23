@@ -1,5 +1,6 @@
 package com.warehouse.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.warehouse.dto.outbound.OutboundSubmitItemRequest;
 import com.warehouse.dto.outbound.OutboundSubmitRequest;
@@ -9,6 +10,7 @@ import com.warehouse.mapper.OutboundOrderMapper;
 import com.warehouse.service.OutboundOrderItemService;
 import com.warehouse.service.OutboundOrderService;
 import com.warehouse.service.StockService;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -40,23 +42,36 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
 
     @Override
     public OutboundOrder submitOrder(OutboundSubmitRequest request, Long operatorId) {
+        OutboundOrder existingOrder = findByRequestId(request.getRequestId());
+        if (existingOrder != null) {
+            return existingOrder;
+        }
         Map<Long, BigDecimal> aggregatedQuantities = aggregateQuantities(request.getItems());
-        return stockService.executeWithStockLocks(request.getWarehouseId(), aggregatedQuantities.keySet(), () ->
-                transactionTemplate.execute(status -> {
-                    stockService.deductStocksInLock(request.getWarehouseId(), aggregatedQuantities);
+        try {
+            return stockService.executeWithStockLocks(request.getWarehouseId(), aggregatedQuantities.keySet(), () ->
+                    transactionTemplate.execute(status -> {
+                        stockService.deductStocksInLock(request.getWarehouseId(), aggregatedQuantities);
 
-                    OutboundOrder outboundOrder = buildOrder(request, operatorId);
-                    save(outboundOrder);
+                        OutboundOrder outboundOrder = buildOrder(request, operatorId);
+                        save(outboundOrder);
 
-                    List<OutboundOrderItem> items = buildOrderItems(outboundOrder.getId(), request.getItems());
-                    outboundOrderItemService.saveBatch(items);
-                    return outboundOrder;
-                })
-        );
+                        List<OutboundOrderItem> items = buildOrderItems(outboundOrder.getId(), request.getItems());
+                        outboundOrderItemService.saveBatch(items);
+                        return outboundOrder;
+                    })
+            );
+        } catch (DuplicateKeyException ex) {
+            OutboundOrder duplicatedOrder = findByRequestId(request.getRequestId());
+            if (duplicatedOrder != null) {
+                return duplicatedOrder;
+            }
+            throw ex;
+        }
     }
 
     private OutboundOrder buildOrder(OutboundSubmitRequest request, Long operatorId) {
         OutboundOrder outboundOrder = new OutboundOrder();
+        outboundOrder.setRequestId(request.getRequestId());
         outboundOrder.setOrderNo(request.getOrderNo() == null || request.getOrderNo().isBlank() ? generateOrderNo() : request.getOrderNo());
         outboundOrder.setWarehouseId(request.getWarehouseId());
         outboundOrder.setCustomerId(request.getCustomerId());
@@ -110,5 +125,11 @@ public class OutboundOrderServiceImpl extends ServiceImpl<OutboundOrderMapper, O
 
     private String generateOrderNo() {
         return "OUT" + LocalDateTime.now().format(ORDER_NO_FORMATTER) + ThreadLocalRandom.current().nextInt(100000, 1000000);
+    }
+
+    private OutboundOrder findByRequestId(String requestId) {
+        QueryWrapper<OutboundOrder> wrapper = new QueryWrapper<>();
+        wrapper.eq("request_id", requestId).last("limit 1");
+        return getOne(wrapper);
     }
 }

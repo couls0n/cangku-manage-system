@@ -9,7 +9,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Configuration
-@EnableConfigurationProperties({SecurityProperties.class, StockLockProperties.class})
+@EnableConfigurationProperties({SecurityProperties.class, StockLockProperties.class, WebCorsProperties.class})
 public class SecurityConfig {
 
     @Bean

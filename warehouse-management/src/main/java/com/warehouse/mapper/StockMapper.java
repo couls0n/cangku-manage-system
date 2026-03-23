@@ -17,4 +17,10 @@ public interface StockMapper extends BaseMapper<Stock> {
             "AND deleted = 0 " +
             "AND (quantity - frozen_quantity) >= #{deductQuantity}")
     int deductAvailableStock(@Param("stockId") Long stockId, @Param("deductQuantity") BigDecimal deductQuantity);
+
+    @Update("UPDATE stock " +
+            "SET quantity = quantity + #{addQuantity} " +
+            "WHERE id = #{stockId} " +
+            "AND deleted = 0")
+    int addStockQuantity(@Param("stockId") Long stockId, @Param("addQuantity") BigDecimal addQuantity);
 }

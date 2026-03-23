@@ -9,7 +9,8 @@ import com.warehouse.monitoring.entity.SecurityAlert;
 import com.warehouse.monitoring.service.EbpfEventService;
 import com.warehouse.monitoring.service.SecurityAlertService;
 import com.warehouse.monitoring.service.SecurityMonitoringService;
-import com.warehouse.security.AccessGuard;
+import com.warehouse.security.PermissionConstants;
+import com.warehouse.security.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -26,16 +27,13 @@ public class SecurityMonitoringController {
     private final SecurityMonitoringService securityMonitoringService;
     private final EbpfEventService ebpfEventService;
     private final SecurityAlertService securityAlertService;
-    private final AccessGuard accessGuard;
 
     public SecurityMonitoringController(SecurityMonitoringService securityMonitoringService,
                                         EbpfEventService ebpfEventService,
-                                        SecurityAlertService securityAlertService,
-                                        AccessGuard accessGuard) {
+                                        SecurityAlertService securityAlertService) {
         this.securityMonitoringService = securityMonitoringService;
         this.ebpfEventService = ebpfEventService;
         this.securityAlertService = securityAlertService;
-        this.accessGuard = accessGuard;
     }
 
     @PostMapping("/ebpf/ingest")
@@ -44,14 +42,14 @@ public class SecurityMonitoringController {
     }
 
     @GetMapping("/dashboard")
+    @RequiresPermission(PermissionConstants.SECURITY_MONITOR_READ)
     public Result<SecurityDashboardResponse> dashboard() {
-        accessGuard.requireAdmin();
         return Result.success(securityMonitoringService.dashboard());
     }
 
     @GetMapping("/events")
+    @RequiresPermission(PermissionConstants.SECURITY_MONITOR_READ)
     public Result<List<EbpfEvent>> events(@RequestParam(defaultValue = "20") Integer size) {
-        accessGuard.requireAdmin();
         QueryWrapper<EbpfEvent> queryWrapper = new QueryWrapper<>();
         queryWrapper.orderByDesc("created_at");
         queryWrapper.last("limit " + Math.min(size, 100));
@@ -60,8 +58,8 @@ public class SecurityMonitoringController {
     }
 
     @GetMapping("/alerts")
+    @RequiresPermission(PermissionConstants.SECURITY_MONITOR_READ)
     public Result<List<SecurityAlert>> alerts(@RequestParam(defaultValue = "20") Integer size) {
-        accessGuard.requireAdmin();
         QueryWrapper<SecurityAlert> queryWrapper = new QueryWrapper<>();
         queryWrapper.orderByDesc("last_seen");
         queryWrapper.last("limit " + Math.min(size, 100));

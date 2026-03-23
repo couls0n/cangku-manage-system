@@ -31,14 +31,22 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String path = request.getRequestURI();
         boolean loginPath = "/api/auth/login".equals(path) || "/api/user/login".equals(path);
-        int limit = loginPath ? securityProperties.getRateLimit().getLoginLimit() : securityProperties.getRateLimit().getDefaultLimit();
-        int window = loginPath ? securityProperties.getRateLimit().getLoginWindowSeconds() : securityProperties.getRateLimit().getDefaultWindowSeconds();
+        int limit = loginPath
+                ? securityProperties.getRateLimit().getLoginLimit()
+                : securityProperties.getRateLimit().getDefaultLimit();
+        int window = loginPath
+                ? securityProperties.getRateLimit().getLoginWindowSeconds()
+                : securityProperties.getRateLimit().getDefaultWindowSeconds();
+
         String key = buildKey(request, path);
         if (!rateLimiterService.allow(key, limit, window)) {
-            securityMonitoringService.recordApplicationAlert("API_RATE_LIMIT", "MEDIUM",
-                    "触发接口频控",
-                    "路径 " + path + " 在 " + window + " 秒内超过 " + limit + " 次访问");
-            throw new RateLimitException("访问过于频繁，请稍后再试");
+            securityMonitoringService.recordApplicationAlert(
+                    "API_RATE_LIMIT",
+                    "MEDIUM",
+                    "API rate limit triggered",
+                    "Path " + path + " exceeded " + limit + " requests within " + window + " seconds"
+            );
+            throw new RateLimitException("Too many requests, please try again later");
         }
         return true;
     }

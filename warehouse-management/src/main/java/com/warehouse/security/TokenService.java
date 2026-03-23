@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -38,7 +39,7 @@ public class TokenService {
             String signature = sign(encodedPayload);
             return encodedPayload + "." + signature;
         } catch (Exception ex) {
-            throw new IllegalStateException("无法生成访问令牌", ex);
+            throw new IllegalStateException("Failed to generate access token", ex);
         }
     }
 
@@ -46,19 +47,19 @@ public class TokenService {
         try {
             String[] parts = token.split("\\.");
             if (parts.length != 2) {
-                throw new UnauthorizedException("访问令牌格式错误");
+                throw new UnauthorizedException("Invalid access token format");
             }
             String payload = parts[0];
             String signature = parts[1];
-            if (!sign(payload).equals(signature)) {
-                throw new UnauthorizedException("访问令牌签名无效");
+            if (!MessageDigest.isEqual(sign(payload).getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8))) {
+                throw new UnauthorizedException("Invalid access token signature");
             }
             String payloadJson = new String(Base64.getUrlDecoder().decode(payload), StandardCharsets.UTF_8);
             Map<String, Object> claims = objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {
             });
             long expiresAt = ((Number) claims.get("exp")).longValue();
             if (Instant.now().getEpochSecond() > expiresAt) {
-                throw new UnauthorizedException("访问令牌已过期");
+                throw new UnauthorizedException("Access token has expired");
             }
             return AuthenticatedUser.builder()
                     .id(((Number) claims.get("uid")).longValue())
@@ -69,7 +70,7 @@ public class TokenService {
         } catch (UnauthorizedException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new UnauthorizedException("访问令牌解析失败");
+            throw new UnauthorizedException("Failed to parse access token");
         }
     }
 

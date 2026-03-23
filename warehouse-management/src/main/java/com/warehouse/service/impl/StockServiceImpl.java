@@ -6,8 +6,10 @@ import com.warehouse.entity.Stock;
 import com.warehouse.mapper.StockMapper;
 import com.warehouse.service.StockService;
 import com.warehouse.stock.InsufficientStockException;
+import com.warehouse.stock.StockInboundCommand;
 import com.warehouse.stock.StockLockException;
 import com.warehouse.stock.StockLockProperties;
+import com.warehouse.stock.StockQuantityChangeResult;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.ObjectProvider;
@@ -34,8 +36,8 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
     private final Map<String, ReentrantLock> localLocks = new ConcurrentHashMap<>();
 
     public StockServiceImpl(ObjectProvider<RedissonClient> redissonClientProvider, StockLockProperties stockLockProperties) {
-        this.redissonClient = redissonClientProvider.getIfAvailable();
         this.stockLockProperties = stockLockProperties;
+        this.redissonClient = stockLockProperties.isEnabled() ? redissonClientProvider.getIfAvailable() : null;
     }
 
     @Override
@@ -64,6 +66,53 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
         for (Map.Entry<Long, BigDecimal> entry : productQuantities.entrySet()) {
             deductSingleProduct(warehouseId, entry.getKey(), entry.getValue());
         }
+    }
+
+    @Override
+    public void addStocksInLock(Long warehouseId, List<StockInboundCommand> stockCommands) {
+        for (StockInboundCommand command : stockCommands) {
+            addSingleProductStock(warehouseId, command);
+        }
+    }
+
+    @Override
+    public StockQuantityChangeResult changeStockQuantityInLock(Long stockId, BigDecimal quantityChange) {
+        if (quantityChange == null || quantityChange.signum() == 0) {
+            throw new IllegalArgumentException("Stock adjustment quantity cannot be zero");
+        }
+
+        Stock stock = getById(stockId);
+        if (stock == null) {
+            throw new IllegalArgumentException("Stock not found: " + stockId);
+        }
+
+        BigDecimal beforeQuantity = stock.getQuantity() == null ? BigDecimal.ZERO : stock.getQuantity();
+        BigDecimal afterQuantity = beforeQuantity.add(quantityChange);
+        if (quantityChange.signum() > 0) {
+            int updatedRows = baseMapper.addStockQuantity(stockId, quantityChange);
+            if (updatedRows != 1) {
+                throw new StockLockException("Failed to increase stock, please retry");
+            }
+        } else {
+            BigDecimal deductQuantity = quantityChange.abs();
+            BigDecimal available = availableQuantity(stock);
+            if (available.compareTo(deductQuantity) < 0) {
+                throw new InsufficientStockException("Stock adjustment exceeds available quantity, available=" + available);
+            }
+            int updatedRows = baseMapper.deductAvailableStock(stockId, deductQuantity);
+            if (updatedRows != 1) {
+                throw new StockLockException("Failed to decrease stock, please retry");
+            }
+        }
+
+        return StockQuantityChangeResult.builder()
+                .stockId(stock.getId())
+                .warehouseId(stock.getWarehouseId())
+                .productId(stock.getProductId())
+                .batchNo(stock.getBatchNo())
+                .beforeQuantity(beforeQuantity)
+                .afterQuantity(afterQuantity)
+                .build();
     }
 
     private void deductSingleProduct(Long warehouseId, Long productId, BigDecimal requestedQuantity) {
@@ -112,6 +161,42 @@ public class StockServiceImpl extends ServiceImpl<StockMapper, Stock> implements
         BigDecimal quantity = stock.getQuantity() == null ? BigDecimal.ZERO : stock.getQuantity();
         BigDecimal frozenQuantity = stock.getFrozenQuantity() == null ? BigDecimal.ZERO : stock.getFrozenQuantity();
         return quantity.subtract(frozenQuantity).max(BigDecimal.ZERO);
+    }
+
+    private void addSingleProductStock(Long warehouseId, StockInboundCommand command) {
+        if (command.getQuantity() == null || command.getQuantity().signum() <= 0) {
+            throw new IllegalArgumentException("Inbound quantity must be greater than 0");
+        }
+
+        QueryWrapper<Stock> wrapper = new QueryWrapper<>();
+        wrapper.eq("warehouse_id", warehouseId)
+                .eq("product_id", command.getProductId())
+                .eq("deleted", 0);
+        if (command.getBatchNo() == null || command.getBatchNo().isBlank()) {
+            wrapper.isNull("batch_no");
+        } else {
+            wrapper.eq("batch_no", command.getBatchNo());
+        }
+        wrapper.orderByAsc("id");
+        wrapper.last("limit 1");
+
+        Stock existing = getOne(wrapper);
+        if (existing == null) {
+            Stock stock = new Stock();
+            stock.setWarehouseId(warehouseId);
+            stock.setProductId(command.getProductId());
+            stock.setQuantity(command.getQuantity());
+            stock.setFrozenQuantity(BigDecimal.ZERO);
+            stock.setBatchNo(command.getBatchNo());
+            stock.setLocation(null);
+            save(stock);
+            return;
+        }
+
+        int updatedRows = baseMapper.addStockQuantity(existing.getId(), command.getQuantity());
+        if (updatedRows != 1) {
+            throw new StockLockException("Failed to add stock, please retry");
+        }
     }
 
     private LockHandle acquireLock(Long warehouseId, Long productId) {

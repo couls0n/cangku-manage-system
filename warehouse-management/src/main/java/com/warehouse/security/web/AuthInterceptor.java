@@ -11,6 +11,8 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
 
@@ -20,7 +22,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     private final TokenService tokenService;
     private final SecurityProperties securityProperties;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
-    private final List<String> publicPaths = Arrays.asList("/api/auth/login", "/api/user/login", "/error", "/h2-console/**");
+    private final List<String> publicPaths = Arrays.asList("/api/auth/login", "/api/user/login", "/error", "/h2-console/**", "/actuator/health");
 
     public AuthInterceptor(TokenService tokenService, SecurityProperties securityProperties) {
         this.tokenService = tokenService;
@@ -35,8 +37,8 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
         if ("/api/security/ebpf/ingest".equals(path)) {
             String ingestKey = request.getHeader("X-EBPF-KEY");
-            if (!securityProperties.getEbpfIngestKey().equals(ingestKey)) {
-                throw new UnauthorizedException("eBPF 采集密钥无效");
+            if (!constantTimeEquals(securityProperties.getEbpfIngestKey(), ingestKey)) {
+                throw new UnauthorizedException("Invalid eBPF ingest key");
             }
             return true;
         }
@@ -65,6 +67,13 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (headerToken != null && !headerToken.isEmpty()) {
             return headerToken;
         }
-        throw new UnauthorizedException("缺少访问令牌");
+        throw new UnauthorizedException("Missing access token");
+    }
+
+    private boolean constantTimeEquals(String left, String right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(left.getBytes(StandardCharsets.UTF_8), right.getBytes(StandardCharsets.UTF_8));
     }
 }

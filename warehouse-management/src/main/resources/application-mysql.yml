@@ -1,9 +1,6 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/warehouse_db?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
-    username: root
-    password: zzs12345
-  sql:
-    init:
-      mode: never
+    url: ${WAREHOUSE_DB_URL:jdbc:mysql://localhost:3306/warehouse_db?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=Asia/Shanghai}
+    username: ${WAREHOUSE_DB_USERNAME}
+    password: ${WAREHOUSE_DB_PASSWORD}

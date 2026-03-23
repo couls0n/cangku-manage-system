@@ -1,11 +1,14 @@
 package com.warehouse.controller;
 
+import com.warehouse.audit.AuditOperation;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.warehouse.common.PageResult;
 import com.warehouse.common.Result;
 import com.warehouse.entity.Warehouse;
 import com.warehouse.security.AccessGuard;
+import com.warehouse.security.PermissionConstants;
+import com.warehouse.security.RequiresPermission;
 import com.warehouse.service.WarehouseService;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,6 +28,7 @@ public class WarehouseController {
     }
 
     @GetMapping("/list")
+    @RequiresPermission(PermissionConstants.WAREHOUSE_READ)
     public Result<List<Warehouse>> list() {
         QueryWrapper<Warehouse> wrapper = new QueryWrapper<>();
         Long warehouseId = accessGuard.resolveWarehouseScope(null);
@@ -35,6 +39,7 @@ public class WarehouseController {
     }
 
     @GetMapping("/page")
+    @RequiresPermission(PermissionConstants.WAREHOUSE_READ)
     public Result<PageResult<Warehouse>> page(@RequestParam(defaultValue = "1") Integer current,
                                               @RequestParam(defaultValue = "10") Integer size,
                                               @RequestParam(required = false) String warehouseName) {
@@ -52,26 +57,30 @@ public class WarehouseController {
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission(PermissionConstants.WAREHOUSE_READ)
     public Result<Warehouse> getById(@PathVariable Long id) {
         accessGuard.checkWarehouseAccess(id);
         return Result.success(warehouseService.getById(id));
     }
 
     @PostMapping
+    @RequiresPermission(PermissionConstants.WAREHOUSE_MANAGE)
+    @AuditOperation(action = "warehouse.create", resource = "warehouse")
     public Result<Boolean> save(@RequestBody Warehouse warehouse) {
-        accessGuard.requireAdmin();
         return Result.success(warehouseService.save(warehouse));
     }
 
     @PutMapping
+    @RequiresPermission(PermissionConstants.WAREHOUSE_MANAGE)
+    @AuditOperation(action = "warehouse.update", resource = "warehouse")
     public Result<Boolean> update(@RequestBody Warehouse warehouse) {
-        accessGuard.requireAdmin();
         return Result.success(warehouseService.updateById(warehouse));
     }
 
     @DeleteMapping("/{id}")
+    @RequiresPermission(PermissionConstants.WAREHOUSE_MANAGE)
+    @AuditOperation(action = "warehouse.delete", resource = "warehouse")
     public Result<Boolean> delete(@PathVariable Long id) {
-        accessGuard.requireAdmin();
         return Result.success(warehouseService.removeById(id));
     }
 }

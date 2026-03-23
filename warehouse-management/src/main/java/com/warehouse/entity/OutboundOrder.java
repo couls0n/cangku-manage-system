@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 @TableName("outbound_order")
 public class OutboundOrder extends BaseEntity {
 
+    private String requestId;
+
     private String orderNo;
 
     private Long warehouseId;

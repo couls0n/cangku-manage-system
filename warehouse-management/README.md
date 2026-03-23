@@ -1,78 +1,152 @@
 # Warehouse Management
 
-一个经过安全增强的 Spring Boot 仓库管理后端，默认使用 H2 启动，支持切换到 MySQL，并内置 API 频控、水平/垂直越权防御，以及 eBPF 异常事件接入与后台监控接口。
+Enterprise-oriented warehouse management backend based on Spring Boot, MyBatis-Plus, Redis and Flyway.
 
-## 目录结构
+## Highlights
 
-```text
-warehouse-management
-├─ ops/ebpf/                    Linux 侧 eBPF 采集与转发脚本
-├─ src/main/java/com/warehouse
-│  ├─ common/                   通用返回体与异常处理
-│  ├─ config/                   MyBatis、Web、安全配置
-│  ├─ controller/               业务、认证、监控接口
-│  ├─ entity/                   业务实体
-│  ├─ mapper/                   业务 Mapper
-│  ├─ monitoring/               eBPF 事件、告警、监控服务
-│  ├─ security/                 Token、限流、鉴权与访问控制
-│  ├─ service/                  业务服务
-│  └─ WarehouseApplication.java 启动入口
-├─ src/main/resources
-│  ├─ application.yml           默认 H2 配置
-│  ├─ application-mysql.yml     MySQL 配置
-│  ├─ schema.sql                启动建表脚本
-│  ├─ data.sql                  初始化数据
-│  └─ db/init.sql               MySQL 使用说明
-└─ src/test/java/com/warehouse  启动与安全链路测试
+- Token-based authentication with warehouse data scope control
+- Safer response models for users, suppliers and customers
+- Inbound and outbound order submission flows with stock consistency
+- Audited stock adjustment flow with request-level idempotency
+- Stock check, loss and overflow workflows with dedicated audit records
+- Approval workflow for submitted stock checks, loss reports and overflow reports
+- Redis-ready distributed stock lock with local fallback
+- Fine-grained permission enforcement via annotated controller permissions
+- Flyway-based schema migration and seeded dev/test data
+- Operation audit logging and CSV export for compliance scenarios
+- Security monitoring endpoints for eBPF event ingestion
+- Actuator and Prometheus endpoints for basic observability
+- OpenAPI documentation via SpringDoc
+
+## Profiles
+
+- `dev`: local development with H2 and demo seed data
+- `mysql`: MySQL datasource override for staging or production-like environments
+
+The default profile is `dev`.
+
+## Required Environment Variables
+
+At minimum, set these in non-dev environments:
+
+```bash
+WAREHOUSE_TOKEN_SECRET=replace-with-a-strong-secret
+WAREHOUSE_EBPF_INGEST_KEY=replace-with-a-strong-agent-key
 ```
 
-## 启动方式
+When using MySQL:
 
-默认启动：
+```bash
+WAREHOUSE_DB_URL=jdbc:mysql://localhost:3306/warehouse_db?useUnicode=true&characterEncoding=utf-8&useSSL=true&serverTimezone=Asia/Shanghai
+WAREHOUSE_DB_USERNAME=warehouse_app
+WAREHOUSE_DB_PASSWORD=replace-with-db-password
+```
+
+When enabling distributed stock locks:
+
+```bash
+WAREHOUSE_STOCK_LOCK_ENABLED=true
+WAREHOUSE_REDIS_HOST=127.0.0.1
+WAREHOUSE_REDIS_PORT=6379
+WAREHOUSE_REDIS_PASSWORD=
+```
+
+## Run Locally
+
+Development mode with H2:
 
 ```bash
 mvn spring-boot:run
 ```
 
-指定端口：
-
-```bash
-mvn spring-boot:run "-Dspring-boot.run.arguments=--server.port=8081"
-```
-
-切换 MySQL：
+MySQL mode:
 
 ```bash
 mvn spring-boot:run "-Dspring-boot.run.profiles=mysql"
 ```
 
-默认账号：
-
-- 管理员：`admin / 123456`
-- 仓库操作员：`operator / 123456`
-
-## 安全能力
-
-- API 频控：对全部 `/api/**` 生效，登录接口更严格。
-- 垂直越权防御：管理员接口必须管理员角色访问。
-- 水平越权防御：普通操作员仅可访问自己所属仓库的数据，用户资料仅可访问本人。
-- 安全告警：越权拦截和 eBPF 异常事件会进入 `security_alert`。
-
-## 监控接口
-
-- `POST /api/security/ebpf/ingest`
-  - Header: `X-EBPF-KEY: warehouse-ebpf-agent-key`
-- `GET /api/security/dashboard`
-- `GET /api/security/events`
-- `GET /api/security/alerts`
-
-## eBPF 接入
-
-Linux 主机上可使用：
+## Testing
 
 ```bash
-chmod +x ops/ebpf/forward-events.sh
-EBPF_INGEST_KEY=warehouse-ebpf-agent-key ./ops/ebpf/forward-events.sh http://127.0.0.1:8081/api/security/ebpf/ingest
+mvn test
 ```
 
-`warehouse-guard.bt` 会实时采集 Java 进程的 `execve`、`openat`、`connect` 事件，并转发到本项目后台。
+## Database Migration
+
+Schema changes are managed through Flyway migrations under:
+
+```text
+src/main/resources/db/migration
+```
+
+Dev-only seed data lives under:
+
+```text
+src/main/resources/db/dev
+```
+
+## Operational Notes
+
+- `h2-console` is disabled by default and only enabled in `dev`
+- Stock, inbound order and outbound order direct CRUD endpoints are intentionally blocked to preserve stock consistency
+- Use `/api/inbound/submit` and `/api/outbound/submit` for inventory-affecting operations
+- Use `/api/stock/adjustments` for manual stock adjustments instead of editing stock rows directly
+- Use `/api/stock/checks`, `/api/stock/losses` and `/api/stock/overflows` for formal inventory workflows
+- Use `/api/stock/checks/apply`, `/api/stock/losses/apply`, `/api/stock/overflows/apply` for approval-based inventory workflows
+- Use `/api/stock/checks/{id}/approve` and `/api/stock/adjustments/{id}/approve` for approval decisions
+- Use `/api/audit/page` and `/api/audit/export` for audit review and export
+- Health and metrics endpoints are exposed under `/actuator`
+- API docs are exposed under `/swagger-ui.html` and `/api-docs`
+
+## Permission Model
+
+The backend now enforces permission points at the controller boundary.
+
+Examples:
+
+- `stock:read`
+- `stock:adjust:write`
+- `inbound:submit`
+- `outbound:submit`
+- `security:monitor:read`
+
+The login response includes the resolved permission list so the frontend can align UI capabilities with backend authorization.
+
+## Approval Notes
+
+- Direct stock adjustment endpoints still exist for privileged immediate operations
+- Approval-based requests are stored as `PENDING` and do not change stock until approved
+- Approval will fail if the underlying stock quantity has changed since submission, forcing resubmission to avoid stale approvals
+
+## Audit Filters
+
+Audit page and export endpoints support filtering by:
+
+- `action`
+- `resource`
+- `operatorId`
+- `success`
+- `requestId`
+- `requestUri`
+- `fromTime`
+- `toTime`
+
+## Built-in Demo Users
+
+- `admin / 123456`
+- `operator / 123456`
+- `auditor / 123456`
+
+## eBPF Integration
+
+The Java service does not run eBPF probes itself. It receives host-side events from an external Linux agent through:
+
+```text
+POST /api/security/ebpf/ingest
+```
+
+Agent scripts are located under:
+
+```text
+ops/ebpf
+```

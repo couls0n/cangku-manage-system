@@ -8,6 +8,8 @@ import com.warehouse.service.UserService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+
 @Service
 public class AuthService {
 
@@ -42,6 +44,7 @@ public class AuthService {
                         .role(user.getRole())
                         .warehouseId(user.getWarehouseId())
                         .build())
+                .permissions(new ArrayList<>(RolePermissionMatrix.permissionsFor(user.getRole())))
                 .build();
     }
 }

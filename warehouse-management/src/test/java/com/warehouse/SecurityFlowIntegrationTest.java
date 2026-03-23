@@ -15,9 +15,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:warehouse_security;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:warehouse_security;MODE=MySQL;DATABASE_TO_LOWER=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.sql.init.mode=always"
+        "spring.flyway.locations=classpath:db/migration,classpath:db/dev",
+        "warehouse.security.token-secret=test-token-secret",
+        "warehouse.security.ebpf-ingest-key=test-ebpf-key",
+        "warehouse.stock.lock.enabled=false"
 })
 @AutoConfigureMockMvc
 class SecurityFlowIntegrationTest {
@@ -34,7 +37,7 @@ class SecurityFlowIntegrationTest {
 
         mockMvc.perform(get("/api/security/dashboard")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
+                .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value(403));
     }
 
@@ -43,7 +46,7 @@ class SecurityFlowIntegrationTest {
         String adminToken = loginAndGetToken("admin", "123456");
 
         mockMvc.perform(post("/api/security/ebpf/ingest")
-                        .header("X-EBPF-KEY", "warehouse-ebpf-agent-key")
+                        .header("X-EBPF-KEY", "test-ebpf-key")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"eventType\":\"EXEC\",\"severity\":\"HIGH\",\"processId\":9527,\"processName\":\"java\",\"syscallName\":\"execve\",\"targetPath\":\"/bin/sh\",\"summary\":\"suspicious shell spawn\",\"detail\":\"integration test event\"}"))
                 .andExpect(status().isOk())
